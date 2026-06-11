@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app_dirs: ${{ steps.set-matrix.outputs.app_dirs }}
+      has_changes: ${{ steps.set-matrix.outputs.has_changes }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -68,11 +69,16 @@ jobs:
           fi
 
           echo "app_dirs=$matrix_json" >> "$GITHUB_OUTPUT"
+          if [[ "$matrix_json" == "[]" ]]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
           echo "Changed app directories: $matrix_json"
 
   build-images:
     needs: discover-changes
-    if: needs.discover-changes.outputs.app_dirs != '[]'
+    if: needs.discover-changes.outputs.has_changes == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -115,6 +121,8 @@ jobs:
           echo "image_repo=${image_repo}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
           docker build -t "$image_tag" "$APP_DIR"
+          echo "Docker image path: ${image_tag}"
+          echo "Pull command: docker pull ${image_tag}"
 
           if [[ "$should_push" == "true" ]]; then
             echo "Pushing ${image_tag}"
