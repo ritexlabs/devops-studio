@@ -12,6 +12,7 @@ on:
 
 env:
   REPOSITORY_NAME: ritexlabs
+  EMAIL_USERNAME: ritexlabs@gmail.com
   EMAIL_RECIPIENT: ritexlabs@gmail.com
 
 jobs:
@@ -109,6 +110,7 @@ jobs:
 
           app_name="$(basename "$APP_DIR")"
           image_repo="${REPOSITORY_NAME}/${app_name}"
+          image_name="${app_name}"
           image_tag="${image_repo}:latest"
           should_push="false"
 
@@ -123,6 +125,7 @@ jobs:
 
           echo "Building ${image_tag} from ${APP_DIR}"
           echo "image_repo=${image_repo}" >> "$GITHUB_OUTPUT"
+          echo "image_name=${image_name}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
           docker build -t "$image_tag" "$APP_DIR"
           echo "Docker image path: ${image_tag}"
@@ -135,42 +138,15 @@ jobs:
             echo "Skipping push for non-push event"
           fi
 
-      - name: Send Success Email
-        if: github.event_name == 'push' && success()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "✅ Build Succeeded: ${{ github.workflow }} #${{ github.run_number }}"
-          to: ${{ env.EMAIL_RECIPIENT }}
-          from: ${{ secrets.EMAIL_USERNAME }}
-          body: |
-            🎉 The build completed successfully!
-            - Docker Image => ${{ steps.build.outputs.image_tag }}
-            - Workflow: ${{ github.workflow }}
-            - Run Number: ${{ github.run_number }}
-            - Commit: ${{ github.sha }}
-            - Actor: ${{ github.actor }}
-            - Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      - name: Print Docker image details
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Send Failure Email
-        if: github.event_name == 'push' && failure()
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: smtp.gmail.com
-          server_port: 587
-          username: ${{ secrets.EMAIL_USERNAME }}
-          password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: "❌ Build Failed: ${{ github.workflow }} #${{ github.run_number }}"
-          to: ${{ env.EMAIL_RECIPIENT }}
-          from: ${{ secrets.EMAIL_USERNAME }}
-          body: |
-            🚨 The build has failed.
-            - Docker Image => ${{ steps.build.outputs.image_tag }}
-            - Workflow: ${{ github.workflow }}
-            - Run Number: ${{ github.run_number }}
-            - Commit: ${{ github.sha }}
-            - Actor: ${{ github.actor }}
-            - Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          echo "Docker image details"
+          echo "Repository: ${{ steps.build.outputs.image_repo }}"
+          echo "Image name: ${{ steps.build.outputs.image_name }}"
+          echo "Tag: ${{ steps.build.outputs.image_tag }}"
+          echo "Full path: ${{ steps.build.outputs.image_tag }}"
+          echo "Pull command: docker pull ${{ steps.build.outputs.image_tag }}"
