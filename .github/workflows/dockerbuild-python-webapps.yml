@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "python-webapps/**"
-      - ".github/workflows/build-python-webapps-docker.yml"
+      - ".github/workflows/dockerbuild-python-webapps.yml"
   pull_request:
     paths:
       - "python-webapps/**"
-      - ".github/workflows/build-python-webapps-docker.yml"
+      - ".github/workflows/dockerbuild-python-webapps.yml"
 
 jobs:
   discover-changes:
@@ -27,12 +27,18 @@ jobs:
         run: |
           set -euo pipefail
 
+          empty_tree_sha="$(git hash-object -t tree /dev/null)"
+
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             base_sha="${{ github.event.pull_request.base.sha }}"
             head_sha="${{ github.event.pull_request.head.sha }}"
           else
             base_sha="${{ github.event.before }}"
             head_sha="${{ github.sha }}"
+
+            if [[ -z "$base_sha" || "$base_sha" == "0000000000000000000000000000000000000000" ]]; then
+              base_sha="$empty_tree_sha"
+            fi
           fi
 
           changed_dirs=$(git diff --name-only "$base_sha" "$head_sha" -- 'python-webapps/**' \
