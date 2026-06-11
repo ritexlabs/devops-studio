@@ -10,6 +10,10 @@ on:
       - "python-webapps/**"
       - ".github/workflows/dockerbuild-python-webapps.yml"
 
+env:
+  REPOSITORY_NAME: ritexlabs
+  EMAIL_RECIPIENT: ritexlabs@gmail.com
+
 jobs:
   discover-changes:
     runs-on: ubuntu-latest
@@ -86,6 +90,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
+        id: build
         shell: bash
         env:
           APP_DIR: ${{ matrix.app_dir }}
@@ -93,7 +98,7 @@ jobs:
           set -euo pipefail
 
           app_name="$(basename "$APP_DIR")"
-          image_repo="ritexlabs/${app_name}"
+          image_repo="${REPOSITORY_NAME}/${app_name}"
           image_tag="${image_repo}:latest"
           should_push="false"
 
@@ -107,6 +112,8 @@ jobs:
           fi
 
           echo "Building ${image_tag} from ${APP_DIR}"
+          echo "image_repo=${image_repo}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${image_tag}" >> "$GITHUB_OUTPUT"
           docker build -t "$image_tag" "$APP_DIR"
 
           if [[ "$should_push" == "true" ]]; then
@@ -115,3 +122,43 @@ jobs:
           else
             echo "Skipping push for non-push event"
           fi
+
+      - name: Send Success Email
+        if: github.event_name == 'push' && success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "✅ Build Succeeded: ${{ github.workflow }} #${{ github.run_number }}"
+          to: ${{ env.EMAIL_RECIPIENT }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          body: |
+            🎉 The build completed successfully!
+            - Docker Image => ${{ steps.build.outputs.image_tag }}
+            - Workflow: ${{ github.workflow }}
+            - Run Number: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            - Actor: ${{ github.actor }}
+            - Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Failure Email
+        if: github.event_name == 'push' && failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 587
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "❌ Build Failed: ${{ github.workflow }} #${{ github.run_number }}"
+          to: ${{ env.EMAIL_RECIPIENT }}
+          from: ${{ secrets.EMAIL_USERNAME }}
+          body: |
+            🚨 The build has failed.
+            - Docker Image => ${{ steps.build.outputs.image_tag }}
+            - Workflow: ${{ github.workflow }}
+            - Run Number: ${{ github.run_number }}
+            - Commit: ${{ github.sha }}
+            - Actor: ${{ github.actor }}
+            - Logs: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
