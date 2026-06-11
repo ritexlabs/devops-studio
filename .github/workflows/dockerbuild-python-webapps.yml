@@ -150,3 +150,13 @@ jobs:
           echo "Tag: ${{ steps.build.outputs.image_tag }}"
           echo "Full path: ${{ steps.build.outputs.image_tag }}"
           echo "Pull command: docker pull ${{ steps.build.outputs.image_tag }}"
+
+          {
+            echo "## Docker Image Details"
+            echo ""
+            echo "- Repository: ${{ steps.build.outputs.image_repo }}"
+            echo "- Image name: ${{ steps.build.outputs.image_name }}"
+            echo "- Tag: ${{ steps.build.outputs.image_tag }}"
+            echo "- Full path: ${{ steps.build.outputs.image_tag }}"
+            echo "- Pull command: docker pull ${{ steps.build.outputs.image_tag }}"
+          } >> "$GITHUB_STEP_SUMMARY"
