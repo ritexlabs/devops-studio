@@ -105,6 +105,7 @@ jobs:
         shell: bash
         env:
           APP_DIR: ${{ matrix.app_dir }}
+          BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -114,12 +115,15 @@ jobs:
           image_tag="${image_repo}:latest"
           should_push="false"
 
-          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/heads/release/* ]]; then
-            version="${GITHUB_REF_NAME#release/}"
+          echo "Branch name: ${BRANCH_NAME}"
+
+          if [[ "${BRANCH_NAME}" == release/* ]]; then
+            version="${BRANCH_NAME#release/}"
             version="${version#v}"
             image_tag="${image_repo}:${version}"
-            should_push="true"
-          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+          fi
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
             should_push="true"
           fi
 
@@ -145,6 +149,7 @@ jobs:
           set -euo pipefail
 
           echo "Docker image details"
+          echo "Branch: ${{ github.ref_name }}"
           echo "Repository: ${{ steps.build.outputs.image_repo }}"
           echo "Image name: ${{ steps.build.outputs.image_name }}"
           echo "Tag: ${{ steps.build.outputs.image_tag }}"
@@ -154,6 +159,7 @@ jobs:
           {
             echo "## Docker Image Details"
             echo ""
+            echo "- Branch: ${{ github.ref_name }}"
             echo "- Repository: ${{ steps.build.outputs.image_repo }}"
             echo "- Image name: ${{ steps.build.outputs.image_name }}"
             echo "- Tag: ${{ steps.build.outputs.image_tag }}"
