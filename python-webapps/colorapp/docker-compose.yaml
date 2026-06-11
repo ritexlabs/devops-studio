@@ -1,0 +1,26 @@
+
+services:
+  app-red:
+    image: color-app:latest
+    container_name: app-red
+    environment:
+      APP_COLOR: "red"
+    ports:
+      - "8081:8080"
+
+  app-green:
+    image: color-app:latest
+    container_name: app-green
+    environment:
+      APP_COLOR: "green"
+    ports:
+      - "8082:8080"
+
+  app-orange:
+    image: color-app:latest
+    container_name: app-orange
+    environment:
+      APP_COLOR: "#ff9900"
+    ports:
+      - "8083:8080"
+  

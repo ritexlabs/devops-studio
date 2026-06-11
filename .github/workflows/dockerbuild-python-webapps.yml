@@ -1,0 +1,111 @@
+name: Build Python Web Apps Docker
+
+on:
+  push:
+    paths:
+      - "python-webapps/**"
+      - ".github/workflows/build-python-webapps-docker.yml"
+  pull_request:
+    paths:
+      - "python-webapps/**"
+      - ".github/workflows/build-python-webapps-docker.yml"
+
+jobs:
+  discover-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      app_dirs: ${{ steps.set-matrix.outputs.app_dirs }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build matrix from changed app directories
+        id: set-matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+            head_sha="${{ github.event.pull_request.head.sha }}"
+          else
+            base_sha="${{ github.event.before }}"
+            head_sha="${{ github.sha }}"
+          fi
+
+          changed_dirs=$(git diff --name-only "$base_sha" "$head_sha" -- 'python-webapps/**' \
+            | awk -F/ '/^python-webapps\/[^/]+\// {print $1"/"$2}' \
+            | sort -u)
+
+          matrix_json="[]"
+          if [[ -n "$changed_dirs" ]]; then
+            matrix_json="["
+            first=true
+            while IFS= read -r app_dir; do
+              [[ -z "$app_dir" ]] && continue
+              if [[ -f "$app_dir/Dockerfile" ]]; then
+                if [[ "$first" == true ]]; then
+                  first=false
+                else
+                  matrix_json+="," 
+                fi
+                matrix_json+="\"$app_dir\""
+              fi
+            done <<< "$changed_dirs"
+            matrix_json+="]"
+          fi
+
+          echo "app_dirs=$matrix_json" >> "$GITHUB_OUTPUT"
+          echo "Changed app directories: $matrix_json"
+
+  build-images:
+    needs: discover-changes
+    if: needs.discover-changes.outputs.app_dirs != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app_dir: ${{ fromJson(needs.discover-changes.outputs.app_dirs) }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        shell: bash
+        env:
+          APP_DIR: ${{ matrix.app_dir }}
+        run: |
+          set -euo pipefail
+
+          app_name="$(basename "$APP_DIR")"
+          image_repo="ritexlabs/${app_name}"
+          image_tag="${image_repo}:latest"
+          should_push="false"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/heads/release/* ]]; then
+            version="${GITHUB_REF_NAME#release/}"
+            version="${version#v}"
+            image_tag="${image_repo}:${version}"
+            should_push="true"
+          elif [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+            should_push="true"
+          fi
+
+          echo "Building ${image_tag} from ${APP_DIR}"
+          docker build -t "$image_tag" "$APP_DIR"
+
+          if [[ "$should_push" == "true" ]]; then
+            echo "Pushing ${image_tag}"
+            docker push "$image_tag"
+          else
+            echo "Skipping push for non-push event"
+          fi
