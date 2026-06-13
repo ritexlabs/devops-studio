@@ -9,9 +9,6 @@ on:
     paths:
       - "samples-python/webapps/**"
       - ".github/workflows/dockerbuild-python-webapps.yml"
-    paths-ignore:
-      - 'samples-nodejs/playground/**'
-      - 'samples-nodejs/nodejs-static/**'      
 
 env:
   REPOSITORY_NAME: ritexlabs
