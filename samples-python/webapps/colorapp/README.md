@@ -8,6 +8,7 @@
 Install required packages for this application and run the application. Once application started you will see the URL to access it on Browser mostly url will be http://127.0.0.1:8080.
 
 Press CTRL+C to exit the app. set environment variable to set the color for application web page.
+Copy `.env.sample` to `.env` if you want to manage the color through a local environment file.
 
 ```
 pip3 install -r ./requirements.txt

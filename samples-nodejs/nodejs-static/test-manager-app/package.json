@@ -1,0 +1,34 @@
+{
+  "name": "test-manager-app",
+  "version": "1.0.0",
+  "description": "Managing Test cases and test coverage",
+  "main": "index.js",
+  "dependencies": {
+    "bcrypt": "^5.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "jsonwebtoken": "^8.5.1",
+    "mongodb": "^3.6.3",
+    "mongoose": "^5.11.8",
+    "multer": "^1.4.2",
+    "sharp": "^0.26.3",
+    "validator": "^13.5.2",
+    "xlsx": "^0.16.9"
+  },
+  "devDependencies": {
+    "jest": "^26.6.3",
+    "nodemon": "^2.0.6",
+    "supertest": "^6.0.1"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "test": "jest --watch --runInBand"
+  },
+  "jest": {
+    "testEnvironment": "node"
+  },
+  "author": "Ritesh Kumar",
+  "license": "ISC"
+}

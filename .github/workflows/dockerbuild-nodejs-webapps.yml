@@ -1,19 +1,17 @@
-name: Build Python Web Apps Docker
+name: Build Node.js Web Apps Docker
 
 on:
   push:
     paths:
-      - "samples-python/webapps/**"
-      - ".github/workflows/dockerbuild-python-webapps.yml"
+      - "samples-nodejs/**"
+      - ".github/workflows/dockerbuild-nodejs-webapps.yml"
   pull_request:
     paths:
-      - "samples-python/webapps/**"
-      - ".github/workflows/dockerbuild-python-webapps.yml"
+      - "samples-nodejs/**"
+      - ".github/workflows/dockerbuild-nodejs-webapps.yml"
 
 env:
   REPOSITORY_NAME: ritexlabs
-  EMAIL_USERNAME: ritexlabs@gmail.com
-  EMAIL_RECIPIENT: ritexlabs@gmail.com
 
 jobs:
   discover-changes:
@@ -23,7 +21,7 @@ jobs:
       has_changes: ${{ steps.set-matrix.outputs.has_changes }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -50,8 +48,8 @@ jobs:
           echo "Diff base: $base_sha"
           echo "Diff head: $head_sha"
 
-          changed_dirs=$(git diff --name-only "$base_sha" "$head_sha" -- samples-python/webapps \
-            | awk -F/ '/^samples-python\/webapps\/[^/]+\// {print $1"/"$2"/"$3}' \
+          changed_dirs=$(git diff --name-only "$base_sha" "$head_sha" -- samples-nodejs \
+            | awk -F/ '/^samples-nodejs\/[^/]+\/[^/]+\// {print $1"/"$2"/"$3"/"$4}' \
             | sort -u)
 
           matrix_json="[]"
@@ -91,7 +89,7 @@ jobs:
         app_dir: ${{ fromJson(needs.discover-changes.outputs.app_dirs) }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Log in to Docker Hub
         if: github.event_name == 'push'

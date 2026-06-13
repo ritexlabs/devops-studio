@@ -16,15 +16,23 @@ This repo is meant to help anyone learn DevOps faster by keeping common workflow
 
 ```text
 .
-├── apps/             # Sample and demo applications
+├── samples-python/
+│   └── webapps/
+│       └── colorapp/ # Python web app sample
+├── samples-nodejs/
+│   ├── nodejs-web/
+│   └── nodejs-static/
 ├── examples/         # Small runnable examples
 ├── notes/            # Short topic notes and study material
-├── references/      # Quick references, cheat sheets, command lists
+├── references/       # Quick references, cheat sheets, command lists
 ├── docs/             # Longer guides and walkthroughs
 └── README.md
 ```
 
 If you add a new topic, keep it small and easy to scan. Prefer one concept per folder or file.
+
+The current Python sample app lives in [samples-python/webapps/colorapp](samples-python/webapps/colorapp).
+The current Node.js sample apps live in [samples-nodejs](samples-nodejs).
 
 ## How to use this repo
 
