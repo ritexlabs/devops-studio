@@ -113,7 +113,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          app_name="$(basename "$APP_DIR")"
+          app_name="$(basename "$APP_DIR" | tr -d '-')"
           image_repo="${REPOSITORY_NAME}/${app_name}"
           image_name="${app_name}"
           image_tag="${image_repo}:latest"
