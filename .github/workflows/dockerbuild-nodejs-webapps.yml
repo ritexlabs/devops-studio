@@ -54,31 +54,36 @@ jobs:
             | sort -u)
 
           matrix_json="[]"
-          if [[ -n "$changed_dirs" ]]; then
+          selected_dirs="$changed_dirs"
+
+          if [[ -z "$selected_dirs" ]]; then
+            selected_dirs=$(find samples-nodejs -type f -name Dockerfile -print \
+              | while IFS= read -r dockerfile; do
+                  dirname "$dockerfile"
+                done \
+              | sort -u)
+            echo "No changed app directories detected; falling back to all Dockerized Node.js apps."
+          fi
+
+          if [[ -n "$selected_dirs" ]]; then
             matrix_json="["
             first=true
             while IFS= read -r app_dir; do
               [[ -z "$app_dir" ]] && continue
-              if [[ -f "$app_dir/Dockerfile" ]]; then
-                if [[ "$first" == true ]]; then
-                  first=false
-                else
-                  matrix_json+="," 
-                fi
-                matrix_json+="\"$app_dir\""
+              if [[ "$first" == true ]]; then
+                first=false
+              else
+                matrix_json+="," 
               fi
-            done <<< "$changed_dirs"
+              matrix_json+="\"$app_dir\""
+            done <<< "$selected_dirs"
             matrix_json+="]"
           fi
 
           echo "app_dirs=$matrix_json" >> "$GITHUB_OUTPUT"
-          if [[ "$matrix_json" == "[]" ]]; then
-            echo "has_changes=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-          fi
-          echo "Detected app directories: ${changed_dirs:-none}"
-          echo "Changed app directories: $matrix_json"
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "Detected changed app directories: ${changed_dirs:-none}"
+          echo "Selected app directories for build: $matrix_json"
 
   build-images:
     needs: discover-changes
