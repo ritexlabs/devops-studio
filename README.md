@@ -22,6 +22,10 @@ This repo is meant to help anyone learn DevOps faster by keeping common workflow
 ├── samples-nodejs/
 │   ├── nodejs-web/
 │   └── nodejs-static/
+├── samples-terraform/
+│   ├── ec2-KinD-cluster/
+│   ├── ec2-grafana-instance/
+│   └── aws-playground-infra/
 ├── examples/         # Small runnable examples
 ├── notes/            # Short topic notes and study material
 ├── references/       # Quick references, cheat sheets, command lists
@@ -33,6 +37,7 @@ If you add a new topic, keep it small and easy to scan. Prefer one concept per f
 
 The current Python sample app lives in [samples-python/webapps/colorapp](samples-python/webapps/colorapp).
 The current Node.js sample apps live in [samples-nodejs](samples-nodejs).
+The current Terraform sample stacks live in [samples-terraform](samples-terraform), where each stack has a focused purpose and clear setup guidance.
 
 ## How to use this repo
 
@@ -69,6 +74,8 @@ Use local environment files for real values and keep templates in version contro
 
 - `.env` for local-only secrets
 - `.env.example` for placeholders and documentation
+
+For Terraform samples, keep local variable values in `terraform.tfvars` only when required by the sample, and keep any sensitive cloud values out of Git. Use placeholder values in the repository and keep Terraform state and generated files out of version control.
 
 ## License
 

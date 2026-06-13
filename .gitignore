@@ -60,3 +60,6 @@ crash.log
 # Misc generated files
 *.tmp
 *.bak
+.*.png
+.gradle/
+.build/

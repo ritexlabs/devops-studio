@@ -1,0 +1,44 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+
+nodes:
+- role: control-plane
+  image: kindest/node:v1.33.0
+  extraPortMappings:
+    - containerPort: 32000
+      hostPort: 32000
+      protocol: TCP
+    - containerPort: 32001
+      hostPort: 32001
+      protocol: TCP
+    - containerPort: 32002
+      hostPort: 32002
+      protocol: TCP
+    - containerPort: 32003
+      hostPort: 32003
+      protocol: TCP
+    - containerPort: 32004
+      hostPort: 32004
+      protocol: TCP  
+    - containerPort: 32005
+      hostPort: 32005
+      protocol: TCP  
+    - containerPort: 32006
+      hostPort: 32006
+      protocol: TCP
+    - containerPort: 32007
+      hostPort: 32007
+      protocol: TCP
+    - containerPort: 32008
+      hostPort: 32008
+      protocol: TCP
+    - containerPort: 32009
+      hostPort: 32009
+      protocol: TCP
+    - containerPort: 32010
+      hostPort: 32010
+      protocol: TCP
+- role: worker
+  image: kindest/node:v1.33.0
+- role: worker
+  image: kindest/node:v1.33.0
