@@ -9,6 +9,7 @@ on:
     paths:
       - "samples-nodejs/**"
       - ".github/workflows/dockerbuild-nodejs-webapps.yml"
+  workflow_dispatch:
 
 env:
   REPOSITORY_NAME: ritexlabs
@@ -49,7 +50,7 @@ jobs:
           echo "Diff head: $head_sha"
 
           changed_dirs=$(git diff --name-only "$base_sha" "$head_sha" -- samples-nodejs \
-            | awk -F/ '/^samples-nodejs\/[^/]+\/[^/]+\// {print $1"/"$2"/"$3"/"$4}' \
+            | awk -F/ '/^samples-nodejs\/[^/]+\/[^/]+\// {print $1"/"$2"/"$3}' \
             | sort -u)
 
           matrix_json="[]"

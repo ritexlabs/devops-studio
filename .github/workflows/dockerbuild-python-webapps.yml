@@ -9,11 +9,12 @@ on:
     paths:
       - "samples-python/webapps/**"
       - ".github/workflows/dockerbuild-python-webapps.yml"
+    paths-ignore:
+      - 'samples-nodejs/playground/**'
+      - 'samples-nodejs/nodejs-static/**'      
 
 env:
   REPOSITORY_NAME: ritexlabs
-  EMAIL_USERNAME: ritexlabs@gmail.com
-  EMAIL_RECIPIENT: ritexlabs@gmail.com
 
 jobs:
   discover-changes:
