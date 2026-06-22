@@ -4,11 +4,11 @@ Helper manifests for debugging and troubleshooting inside a Kubernetes cluster. 
 
 ---
 
-## Files in This Directory
+## Files
 
 | File | What It Does |
 |------|-------------|
-| `launch-curlutils-pod.yaml` | Launches a pod with the `curl` command available |
+| `launch-curlutils-pod.yaml` | Starts a pod with `curl` pre-installed for in-cluster HTTP testing |
 
 ---
 
@@ -16,19 +16,14 @@ Helper manifests for debugging and troubleshooting inside a Kubernetes cluster. 
 
 ### What It Is
 
-`launch-curlutils-pod.yaml` starts a pod using the `curlimages/curl:8.12.1` image. The pod runs `sleep 3600` (1 hour) to stay alive, giving you a shell to run `curl` commands against any endpoint inside the cluster.
-
-This is useful because:
-
-- Pods inside the cluster have access to **private cluster IP addresses** and **service DNS names** that are not reachable from your laptop.
-- `curl` lets you test HTTP connectivity between services, check health endpoints, and verify that DNS resolution is working — all from within the cluster network.
+`launch-curlutils-pod.yaml` runs the `curlimages/curl:8.12.1` image and sleeps for 3600 seconds (1 hour). This keeps the pod alive so you can `exec` into it and run `curl` commands against any endpoint reachable from within the cluster network — including **private ClusterIP addresses** and **internal DNS names** that are not accessible from your laptop.
 
 ### When to Use It
 
-- Testing whether a service is reachable from inside the cluster (`curl http://my-service.my-namespace/health`)
-- Verifying internal DNS (`curl http://nginx-service.nginx-demo`)
-- Checking an endpoint that is not exposed outside the cluster (ClusterIP services)
-- Diagnosing network policy or RBAC issues
+- Test whether a service is reachable from inside the cluster
+- Verify internal DNS resolution (`nginx-service.nginx-demo`)
+- Check health endpoints on ClusterIP services
+- Diagnose network policies or service misconfiguration
 
 ---
 
@@ -36,89 +31,74 @@ This is useful because:
 
 ```bash
 kubectl apply -f launch-curlutils-pod.yaml
-```
-
-Wait for the pod to be ready:
-
-```bash
 kubectl get pod curlutils --watch
-# Wait until STATUS shows "Running"
+# Wait until STATUS shows Running
 ```
 
 ---
 
-## Step 2 — Open a Shell Inside the Pod
+## Step 2 — Open a Shell and Run curl
 
 ```bash
 kubectl exec -it curlutils -- sh
 ```
 
-You are now inside the cluster network. Run any `curl` command:
+Inside the pod you have full cluster network access:
 
 ```sh
-# Test a service by its DNS name (format: <service>.<namespace>)
+# Test a service by its internal DNS name  (format: <service>.<namespace>)
 curl http://nginx-service.nginx-demo
 
-# Test a service by cluster IP
+# Test a ClusterIP service directly
 curl http://10.96.12.34
 
 # Check an HTTP health endpoint
 curl -v http://my-app-service.my-namespace/health
 
-# Follow redirects and show headers
+# Follow redirects and print response headers
 curl -Lv http://my-service.default
 
-# Test HTTPS (with -k to skip cert verification for internal certs)
+# Test HTTPS with a self-signed cert (-k skips cert verification)
 curl -k https://my-secure-service.default
 
-# Exit the shell when done
 exit
 ```
 
 ---
 
-## Step 3 — Remove the Pod When Done
+## Step 3 — Remove When Done
 
-The pod stays alive for 1 hour (3600 seconds). Remove it manually when finished:
+The pod lives for 1 hour then the sleep exits and it completes. Remove it manually when finished:
 
 ```bash
 kubectl delete -f launch-curlutils-pod.yaml
-# or
-kubectl delete pod curlutils
 ```
 
 ---
 
 ## Tips
 
-### Reach services in any namespace
+### Internal DNS format
 
-Kubernetes internal DNS follows the pattern `<service-name>.<namespace>.svc.cluster.local`. The short form `<service-name>.<namespace>` also works:
+Kubernetes DNS follows the pattern `<service>.<namespace>.svc.cluster.local`. The short form also works within the same cluster:
 
 ```sh
-# Full DNS name
+# Full form
 curl http://nginx-service.nginx-demo.svc.cluster.local
 
-# Short form (works within the same cluster)
+# Short form (works anywhere in the cluster)
 curl http://nginx-service.nginx-demo
 ```
 
-### Check DNS resolution
-
-```sh
-# Look up a service's cluster IP
-nslookup nginx-service.nginx-demo
-```
-
-### Run a one-shot curl without entering a shell
+### One-shot curl without entering a shell
 
 ```bash
 kubectl exec curlutils -- curl -s http://nginx-service.nginx-demo
 ```
 
-### Launch in a specific namespace
+### Run the pod in a specific namespace
 
-If you need the pod to run inside a particular namespace (e.g., to test network policies that restrict cross-namespace traffic), edit the manifest to add a `namespace` field:
+To test network policies that restrict cross-namespace traffic, add `namespace` to the manifest:
 
 ```yaml
 metadata:
@@ -126,7 +106,7 @@ metadata:
   namespace: nginx-demo   # add this line
 ```
 
-Then apply as usual.
+Then apply as normal.
 
 ---
 
@@ -136,7 +116,7 @@ Then apply as usual.
 apiVersion: v1
 kind: Pod
 metadata:
-  name: curlutils           # pod name — used in kubectl exec
+  name: curlutils
 spec:
   containers:
   - name: curlutils

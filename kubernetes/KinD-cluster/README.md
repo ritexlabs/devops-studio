@@ -1,61 +1,85 @@
 # KinD Cluster — Local Multi-Node Kubernetes in Docker
 
-KinD (Kubernetes in Docker) runs a fully functional Kubernetes cluster inside Docker containers on your local machine. This directory provides three setup paths — pick the one that matches your environment:
+KinD (Kubernetes in Docker) runs a fully functional Kubernetes cluster inside Docker containers. This directory provides three setup paths — pick the one that matches your situation:
 
-- **Option A — Docker Compose (recommended for beginners):** Spins up a pre-configured container that includes all tools and creates the cluster automatically.
-- **Option B — VM / EC2 Instance (manual):** Installs tools directly on Ubuntu and creates the cluster manually. Ideal for practising on a cloud VM.
-- **Option C — Terraform (quickest cloud setup):** Fully automated — provisions the EC2 instance, installs all tools, and configures the KinD cluster with a single `terraform apply`. No manual SSH steps required.
-
----
-
-## What Is Created
-
-| Resource | Detail |
-|----------|--------|
-| Kubernetes version | v1.33.0 |
-| Cluster topology | 1 control-plane + 2 worker nodes |
-| Exposed NodePorts | 32000 – 32010 (mapped to your host) |
-| Tools included | `kubectl`, `kind`, `helm`, `terraform`, `go` |
+| Option | Best For | Setup Time |
+|--------|----------|-----------|
+| **A — Docker Compose** | Local laptop, beginners, zero manual installs | ~5 min |
+| **B — VM / EC2 (manual)** | Learning each install step, Ubuntu VM practice | ~15 min |
+| **C — Terraform on AWS** | Cloud lab, fully automated, repeatable | ~10 min (one command) |
 
 ---
 
-## Option A — Docker Compose (Recommended)
+## What the Cluster Looks Like
 
-### Prerequisites
+`kind-config.yml` defines a 3-node cluster:
 
-- Docker Desktop or Docker Engine installed and running
-- Docker Compose v2 (`docker compose version`)
-
-### Step 1 — Configure your workspace volume
-
-Open `docker-compose.yml` and update the host path in the `volumes` section to point to your own local workspace:
-
-```yaml
-volumes:
-  - /your/local/workspace:/dsk01   # ← change the left side
+```
+control-plane  (kindest/node:v1.33.0)
+worker-1       (kindest/node:v1.33.0)
+worker-2       (kindest/node:v1.33.0)
 ```
 
-### Step 2 — Build and start the container
+The Docker Compose path also exposes the KinD API server on host port `6443`.
+
+---
+
+## Option A — Docker Compose (Recommended for Beginners)
+
+The `Dockerfile` builds an Ubuntu image with all tools pre-installed:
+
+| Tool | Version |
+|------|---------|
+| KinD | v0.30.0 |
+| kubectl | v1.29.3 |
+| Helm | v3.17.1 |
+| Terraform | v1.11.2 |
+| Go | v1.23.3 |
+
+When the container starts, `entrypoint.sh` automatically:
+1. Starts a Docker daemon inside the container (Docker-in-Docker)
+2. Creates the KinD cluster
+3. Installs the Calico CNI plugin
+4. Initialises Helm repos and Terraform
+
+### Step 1 — Create a local workspace folder
+
+The container mounts a local folder into `/dsk01`. Create it first:
 
 ```bash
+mkdir -p kubernetes/KinD-cluster/workspace
+```
+
+By default `docker-compose.yml` mounts `./workspace:/dsk01`. Change the left side of that volume line if you want to use a different path on your machine.
+
+### Step 2 — (Optional) Add a custom KinD config
+
+If you want to customise the cluster (add NodePort mappings, extra nodes, etc.), copy `kind-config.yml` into your workspace folder and rename it:
+
+```bash
+cp kubernetes/KinD-cluster/kind-config.yml kubernetes/KinD-cluster/workspace/kind-config.yaml
+```
+
+The entrypoint reads the file from `KIND_CONFIG_FILE=/dsk01/kind-config.yaml`. If that file is absent, a single-node default cluster is created instead.
+
+### Step 3 — Build and start
+
+```bash
+cd kubernetes/KinD-cluster
 docker compose up --build
 ```
 
-The entrypoint script will:
-1. Start a Docker daemon inside the container (Docker-in-Docker).
-2. Create the KinD cluster using `kind-config.yml`.
-3. Install the Calico CNI plugin.
-4. Initialize Helm and Terraform.
+Wait for the line `Docker is ready.` then `KinD cluster 'mycluster' already exists.` (or the creation log). The cluster is ready when you see the helm/terraform init output complete.
 
-### Step 3 — Attach to the container
+### Step 4 — Open a shell in the container
+
+In a second terminal:
 
 ```bash
-docker compose run k8s-kind-cluster
-# or, if already running:
 docker exec -it k8s-kind-cluster bash
 ```
 
-### Step 4 — Verify the cluster
+### Step 5 — Verify the cluster
 
 ```bash
 kubectl cluster-info --context kind-mycluster
@@ -63,14 +87,24 @@ kubectl get nodes
 kubectl get pods -A
 ```
 
-Expected output:
+Expected nodes:
 
 ```
-NAME                 STATUS   ROLES           AGE   VERSION
-kind-control-plane   Ready    control-plane   2m    v1.33.0
-kind-worker          Ready    <none>          2m    v1.33.0
-kind-worker2         Ready    <none>          2m    v1.33.0
+NAME                    STATUS   ROLES           AGE   VERSION
+mycluster-control-plane Ready    control-plane   2m    v1.33.0
+mycluster-worker        Ready    <none>          2m    v1.33.0
+mycluster-worker2       Ready    <none>          2m    v1.33.0
 ```
+
+### Environment variables (docker-compose.yml)
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `KIND_CLUSTER_NAME` | `mycluster` | Name of the KinD cluster |
+| `KIND_CONFIG_FILE` | `/dsk01/kind-config.yaml` | Path to custom cluster config inside the container |
+| `KIND_WAIT` | `120s` | Timeout waiting for cluster to become ready |
+| `CNI_PLUGIN` | `calico` | CNI to install (`calico`, `flannel`, or leave blank) |
+| `INSECURE_REGISTRY` | `false` | Set `true` only if you have TLS issues with a private registry |
 
 ### Clean up
 
@@ -80,26 +114,36 @@ docker compose down --remove-orphans
 
 ---
 
-## Option B — VM / EC2 Instance (Ubuntu 22.04)
+## Option B — VM / EC2 Instance (Manual Install)
 
-### Step 1 — Provision an Ubuntu VM or EC2 instance
+Use this path to practice each installation step on an Ubuntu 22.04 VM or EC2 instance.
 
-Connect via SSH once the instance is running.
+### Step 1 — Provision and connect to an Ubuntu VM
 
-### Step 2 — Install required tools
+SSH into the instance once it is running.
 
-Run the install scripts in order:
+### Step 2 — Install tools
+
+Make the scripts executable and run them in order:
 
 ```bash
 chmod +x install_docker.sh install_kind.sh install_kubectl.sh install_helm.sh
 
-./install_docker.sh    # installs Docker CE
-./install_kind.sh      # installs KinD v0.20.0
-./install_kubectl.sh   # installs kubectl v1.30.0
-./install_helm.sh      # installs Helm 3
+./install_docker.sh    # Docker CE (from official Docker apt repo)
+./install_kind.sh      # KinD v0.20.0
+./install_kubectl.sh   # kubectl v1.30.0
+./install_helm.sh      # Helm 3
 ```
 
-> After installing Docker, log out and back in (or run `newgrp docker`) so your user can run Docker commands without `sudo`.
+> After `install_docker.sh`, log out and back in (or run `newgrp docker`) so your user can run Docker without `sudo`.
+
+**Installed versions (manual path):**
+
+| Tool | Version |
+|------|---------|
+| KinD | v0.20.0 |
+| kubectl | v1.30.0 |
+| Helm | 3 (latest at install time) |
 
 ### Step 3 — Create the cluster
 
@@ -129,7 +173,29 @@ kubectl get nodes
 kind get clusters
 ```
 
-### Step 5 — Delete the cluster when done
+```
+NAME                 STATUS   ROLES           AGE   VERSION
+kind-control-plane   Ready    control-plane   2m    v1.33.0
+kind-worker          Ready    <none>          2m    v1.33.0
+kind-worker2         Ready    <none>          2m    v1.33.0
+```
+
+### Step 5 — Check running Docker containers
+
+Each KinD node runs as a Docker container:
+
+```bash
+docker ps
+```
+
+```
+CONTAINER ID   IMAGE                  PORTS                      NAMES
+314c70d760ba   kindest/node:v1.33.0   127.0.0.1:36321->6443/tcp  kind-control-plane
+a0c3cfb63b7c   kindest/node:v1.33.0                              kind-worker
+19d70a7867d2   kindest/node:v1.33.0                              kind-worker2
+```
+
+### Step 6 — Delete the cluster when done
 
 ```bash
 kind delete cluster --name=kind
@@ -139,173 +205,114 @@ kind delete cluster --name=kind
 
 ## Option C — Terraform on AWS (Quickest Cloud Setup)
 
-If you have an AWS account with existing networking (VPC, Security Group, ALB, Route 53 hosted zone), Terraform can provision the entire EC2 + KinD environment with a single command — no manual installation or SSH steps required.
+Terraform provisions the EC2 instance, installs all tools, and boots the KinD cluster automatically — no manual SSH steps needed.
 
-The Terraform stack is in: **[samples-terraform/ec2-KinD-cluster](https://github.com/ritexlabs/devops-studio/tree/main/samples-terraform/ec2-KinD-cluster)**
+The stack lives in: **[samples-terraform/ec2-KinD-cluster](https://github.com/ritexlabs/devops-studio/tree/main/samples-terraform/ec2-KinD-cluster)**
 
 ### What Terraform Creates
 
-- An EC2 instance (Ubuntu) sized for KinD
-- Docker, KinD, kubectl, and Helm installed automatically via `user_data`
-- A KinD cluster started at boot with NodePorts `32000–32010` exposed
-- An ALB listener rule routing `https://<resource_prefix>-kind-dashboard.<domain_name>` to the Kubernetes Dashboard
+- Ubuntu EC2 instance pre-sized for KinD
+- Docker, KinD, kubectl, Helm installed via `user_data`
+- KinD cluster started automatically on boot
+- ALB listener rule → `https://<resource_prefix>-kind-dashboard.<domain_name>`
 
 ### Prerequisites
 
 - AWS CLI configured (`aws configure`)
-- Terraform installed (`terraform -version`)
-- Existing AWS resources: VPC, Security Group, ALB, EC2 Key Pair, Route 53 Hosted Zone
+- Terraform installed
+- Existing in AWS: VPC, Security Group, ALB, EC2 Key Pair, Route 53 Hosted Zone
 
-### Step 1 — Clone the stack
+### Deploy
 
 ```bash
 cd samples-terraform/ec2-KinD-cluster
-```
 
-### Step 2 — Configure `terraform.tfvars`
-
-Edit `terraform.tfvars` and fill in your environment values:
-
-```hcl
-aws_region     = "us-east-2"          # AWS region for the EC2 instance
-vpc_name       = "playground-vpc"     # Name of your existing VPC
-sg_name        = "playground-sg"      # Existing security group name
-alb_name       = "playground-alb"     # Existing ALB name (for dashboard routing)
-hosted_zoneid  = "Z0XXXXXXXXXX"       # Route 53 hosted zone ID
-resource_prefix = "kind"              # Prefix applied to all created resource names
-ec2_source_ami = "ami-0f5fcdfbd140e4ab7"  # Ubuntu 22.04 AMI for us-east-2 (update for other regions)
-key_pair_name  = "my-keypair"         # EC2 key pair for SSH access
-domain_name    = "example.com"        # Your domain (dashboard URL: kind-kind-dashboard.example.com)
-tag_envname    = "kind"               # Environment tag
-```
-
-> Find the correct Ubuntu 22.04 AMI for your region in the [AWS AMI Catalog](https://us-east-1.console.aws.amazon.com/ec2/home#AMICatalog).
-
-### Step 3 — Deploy
-
-```bash
+# Edit terraform.tfvars with your values (VPC, SG, ALB, key pair, domain, …)
 terraform init
 terraform plan
 terraform apply --auto-approve
 ```
 
-Terraform will output the EC2 instance public IP and the dashboard URL when complete.
+### Verify
 
-### Step 4 — Verify the cluster
-
-SSH into the instance (replace with your key and the IP from Terraform output):
+SSH into the instance using the IP from Terraform output:
 
 ```bash
-ssh -i ~/.ssh/my-keypair.pem ubuntu@<ec2-public-ip>
-```
-
-Inside the instance:
-
-```bash
-kubectl cluster-info
+ssh -i ~/.ssh/<your-key>.pem ubuntu@<ec2-public-ip>
 kubectl get nodes
 kubectl get pods -A
 ```
 
-### Step 5 — Access the Kubernetes Dashboard
+### Dashboard access
 
-The dashboard is reachable at:
-
-```text
+```
 https://<resource_prefix>-kind-dashboard.<domain_name>
-# Example: https://kind-kind-dashboard.example.com
 ```
 
-Retrieve the login token stored on the instance:
+Login token is stored on the instance at `/home/ubuntu/configs/admin-user-token`.
 
-```bash
-cat /home/ubuntu/configs/admin-user-token
-```
-
-Paste the token into the dashboard login screen.
-
-### Tear Down
+### Tear down
 
 ```bash
 terraform destroy --auto-approve
 ```
 
-This removes the EC2 instance and its associated resources. The VPC, ALB, Security Group, and Route 53 zone (which were pre-existing) are not deleted.
-
 ---
 
-## Kubernetes Dashboard (Optional)
+## Kubernetes Dashboard (Optional — All Options)
 
-The Kubernetes Dashboard provides a browser-based UI for inspecting your cluster.
-
-### Install the dashboard
+### Install
 
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/kubernetes/dashboard/v2.7.0/aio/deploy/recommended.yaml
 ```
 
-### Create an admin service account
+### Create the admin service account
 
-The `dashboard-adminuser.yml` manifest creates a `ServiceAccount` and binds it to the `cluster-admin` role:
+`dashboard-adminuser.yml` creates a `ServiceAccount` and binds it to `cluster-admin`:
 
 ```bash
 kubectl apply -f dashboard-adminuser.yml
 ```
 
-### Generate a login token
+### Generate a token
 
 ```bash
 kubectl -n kubernetes-dashboard create token admin-user
 ```
 
-Copy the token output — you will need it to log in.
+Copy the token — you will paste it on the dashboard login page.
 
-### Access the dashboard
-
-Start a port-forward in the background:
+### Access via port-forward
 
 ```bash
 kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard 8443:443 --address=0.0.0.0 &
 ```
 
-Open your browser at `https://localhost:8443` and paste the token to log in.
-
-> The dashboard uses a self-signed certificate so your browser will show a security warning — this is expected in a local lab environment. Click "Advanced" → "Proceed" to continue.
+Open `https://localhost:8443` and paste the token. Expect a self-signed cert warning in your browser — click **Advanced → Proceed** to continue.
 
 ---
 
-## NodePort Access
+## Deploy a Sample Voting App (Optional Validation)
 
-Ports `32000` through `32010` on the control-plane node are mapped directly to your host machine. When you deploy an application with a `NodePort` service in that range, you can reach it at `http://localhost:<port>`.
-
-| Port | Reserved for |
-|------|-------------|
-| 32000 | Kubernetes Dashboard |
-| 32001–32010 | Free for sample app deployments |
-
----
-
-## Deploy a Sample Voting App (Optional)
-
-A quick end-to-end validation of the cluster:
+A quick end-to-end check that the cluster is working:
 
 ```bash
-cd ~
 git clone https://github.com/dockersamples/example-voting-app.git
 cd example-voting-app
 kubectl apply -f k8s-specifications/
 kubectl get all
 ```
 
-Access the apps via port-forward:
+Port-forward to access:
 
 ```bash
 kubectl port-forward service/vote 5000:8080 --address=0.0.0.0 &
 kubectl port-forward service/result 5001:8081 --address=0.0.0.0 &
 ```
 
-- Vote at: `http://localhost:5000`
-- Results at: `http://localhost:5001`
+- Vote: `http://localhost:5000`
+- Results: `http://localhost:5001`
 
 ---
 
@@ -313,12 +320,12 @@ kubectl port-forward service/result 5001:8081 --address=0.0.0.0 &
 
 | File | Purpose |
 |------|---------|
-| `kind-config.yml` | KinD cluster topology (1 control-plane, 2 workers, NodePort mappings) |
-| `Dockerfile` | Multi-stage image with kubectl, helm, terraform, kind, go |
-| `docker-compose.yml` | Docker Compose service definition for the DinD environment |
-| `entrypoint.sh` | Container startup script — creates cluster, installs CNI, inits helm/terraform |
-| `dashboard-adminuser.yml` | ServiceAccount + ClusterRoleBinding for dashboard admin access |
-| `install_docker.sh` | Installs Docker CE on Ubuntu (for VM/EC2 path) |
-| `install_kind.sh` | Installs KinD binary on Ubuntu |
-| `install_kubectl.sh` | Installs kubectl on Ubuntu |
-| `install_helm.sh` | Installs Helm 3 on Ubuntu |
+| `kind-config.yml` | KinD cluster topology — 1 control-plane + 2 workers, k8s v1.33.0 |
+| `Dockerfile` | Multi-stage image: builder downloads binaries; runtime adds Docker + tools |
+| `docker-compose.yml` | Runs the DinD container; mounts `./workspace` as `/dsk01` |
+| `entrypoint.sh` | Container start script: starts dockerd, creates cluster, installs CNI, inits Helm/Terraform |
+| `dashboard-adminuser.yml` | ServiceAccount + ClusterRoleBinding for dashboard admin login |
+| `install_docker.sh` | Installs Docker CE from the official Docker apt repository (Option B) |
+| `install_kind.sh` | Installs KinD v0.20.0 binary (Option B) |
+| `install_kubectl.sh` | Installs kubectl v1.30.0 (Option B) |
+| `install_helm.sh` | Installs Helm 3 using the official installer script (Option B) |

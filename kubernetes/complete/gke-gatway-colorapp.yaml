@@ -7,10 +7,10 @@ metadata:
   annotations: 
     kubernetes.io/ingress.class: gce 
     kubernetes.io/ingress.allow-http: "true"
-    kubernetes.io/ingress.global-static-ip-name: <static-ip-name>
+    kubernetes.io/ingress.global-static-ip-name: "examplelabs-webapps-ip"
 spec:  
   rules:
-  - host: <fqdn_hostname>
+  - host: "redapp.example.com"
     http:
       paths:
       - pathType: ImplementationSpecific

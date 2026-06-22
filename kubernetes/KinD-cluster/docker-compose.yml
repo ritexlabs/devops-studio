@@ -11,8 +11,8 @@ services:
     tty: true
     stdin_open: true
     volumes:
-      # Mount your local workspace
-      - /Users/singr2/RiteshLocalWorkspaces/PersonalWorkspace/docker-volume:/dsk01
+      # Mount your local workspace — change ./workspace to any folder on your machine
+      - ./workspace:/dsk01
       # Mount Docker data for DinD persistence
       - /var/lib/docker
     environment:

@@ -49,7 +49,7 @@ FROM ubuntu:22.04
 
 # Install Docker Engine and runtime essentials
 RUN apt-get update && \
-    apt-get install -y docker.io bash curl git ca-certificates && \
+    apt-get install -y docker.io bash curl git ca-certificates dos2unix && \
     update-ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
@@ -76,7 +76,8 @@ ENV CNI_PLUGIN="calico"
 
 # Copy entrypoint script
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh
+RUN dos2unix /usr/local/bin/entrypoint.sh && \
+    chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["bash"]

@@ -1,10 +1,10 @@
 # nginx — Traefik IngressRoute with TLS
 
-A Traefik `IngressRoute` (CRD) manifest that serves the nginx deployment over HTTPS. Use this after you have deployed the base nginx app (`../nginx/`) and want to add TLS termination via Traefik.
+A Traefik `IngressRoute` (CRD) that serves the nginx deployment over HTTPS. Use this after you have deployed the base nginx app (`../nginx/`) and want to add TLS termination via Traefik.
 
 ---
 
-## What Is in This Directory
+## Files in This Directory
 
 | File | What It Creates |
 |------|----------------|
@@ -12,69 +12,57 @@ A Traefik `IngressRoute` (CRD) manifest that serves the nginx deployment over HT
 
 ---
 
-## Background — IngressRoute vs Standard Ingress
+## Standard Ingress vs IngressRoute
 
-The standard Kubernetes `Ingress` resource (`../nginx/create-ingress.yaml`) works for simple HTTP routing. The Traefik `IngressRoute` CRD used here adds:
+The standard Kubernetes Ingress in `../nginx/create-ingress.yaml` handles basic HTTP routing. The Traefik `IngressRoute` CRD used here adds:
 
-- **TLS termination** using a Kubernetes Secret containing your certificate
-- **Sticky sessions** via cookies
-- **Fine-grained host matching** using Traefik's rule syntax
+- **TLS termination** using a Kubernetes Secret that holds your certificate
+- **Sticky sessions** via cookies (`httpOnly`, `sameSite: none`, `secure: true`)
+- **Traefik rule syntax** for more flexible host and path matching
 
 ---
 
 ## Prerequisites
 
-- The base nginx deployment running: `../nginx/create-namespace.yaml`, `create-deployment.yaml`, `create-service.yaml` must already be applied
-- Traefik installed via Helm (required for `IngressRoute` CRDs to exist)
-- A TLS certificate as a Kubernetes Secret in the `nginx-demo` namespace
+- Base nginx app deployed: apply `../nginx/create-namespace.yaml`, `create-deployment.yaml`, `create-service.yaml` first
+- Traefik installed via Helm (`IngressRoute` CRDs must be registered)
+- A TLS certificate stored as a Kubernetes Secret in the `nginx-demo` namespace
 
 ---
 
 ## Step 1 — Deploy the Base nginx App
 
-If you haven't already:
+If not already running:
 
 ```bash
 kubectl apply -f ../nginx/create-namespace.yaml
 kubectl apply -f ../nginx/create-deployment.yaml
 kubectl apply -f ../nginx/create-service.yaml
-```
 
-Verify pods are running:
-
-```bash
-kubectl get pods -n nginx-demo
+kubectl get pods -n nginx-demo   # wait for Running
 ```
 
 ---
 
 ## Step 2 — Create a TLS Secret
 
-You need a certificate and private key. For local testing, generate a self-signed certificate:
+For **local / lab testing**, generate a self-signed certificate:
 
 ```bash
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout tls.key \
   -out tls.crt \
   -subj "/CN=localhost/O=nginx-demo"
-```
 
-Create the Kubernetes Secret in the `nginx-demo` namespace:
-
-```bash
 kubectl create secret tls exampledev-tls \
   --cert=tls.crt \
   --key=tls.key \
   -n nginx-demo
+
+kubectl get secret exampledev-tls -n nginx-demo   # confirm created
 ```
 
-Verify the secret was created:
-
-```bash
-kubectl get secret exampledev-tls -n nginx-demo
-```
-
-> For production, use a real certificate from a CA (e.g., Let's Encrypt with cert-manager, or an ACM certificate imported as a secret).
+For **production**, replace the self-signed cert with one from Let's Encrypt (cert-manager) or your CA.
 
 ---
 
@@ -82,15 +70,10 @@ kubectl get secret exampledev-tls -n nginx-demo
 
 ```bash
 kubectl apply -f create-ingress-tls.yaml
-```
-
-Verify:
-
-```bash
 kubectl get ingressroute -n nginx-demo
 ```
 
-Expected output:
+Expected:
 
 ```
 NAME                  AGE
@@ -101,21 +84,19 @@ nginx-ingress-route   10s
 
 ## Step 4 — Access nginx over HTTPS
 
-The `create-ingress-tls.yaml` manifest uses `Host(*)` which matches any hostname. Access nginx at:
+The manifest matches `Host(*)` which accepts any hostname. Open:
 
 ```
 https://localhost
 ```
 
-> Your browser will warn about an untrusted certificate when using a self-signed cert. Click "Advanced" → "Proceed" to continue — this is expected in a local testing environment.
+> Your browser will show a security warning for the self-signed certificate. Click **Advanced → Proceed** to continue — this is expected in a local lab.
 
-For a production setup, replace `Host(*)` in the manifest with your actual domain:
+For a real domain in production, replace `Host(*)` in the manifest with your domain:
 
 ```yaml
 match: Host(`nginx.mycompany.com`)
 ```
-
-And replace the self-signed secret with a valid certificate.
 
 ---
 
@@ -129,21 +110,22 @@ metadata:
   namespace: nginx-demo
 spec:
   tls:
-    secretName: exampledev-tls    # the TLS secret you created above
+    secretName: exampledev-tls     # Kubernetes Secret with your cert and key
   entryPoints:
-    - web        # HTTP (port 80)
-    - websecure  # HTTPS (port 443)
+    - web                           # port 80
+    - websecure                     # port 443
   routes:
     - kind: Rule
-      match: Host(`*`)            # replace with your domain in production
+      match: Host(`*`)              # replace with your domain in production
       services:
         - kind: Service
           name: nginx-service
           namespace: nginx-demo
+          passHostHeader: true
           port: 80
           sticky:
             cookie:
-              httpOnly: true      # sticky session cookie settings
+              httpOnly: true
               name: cookie
               sameSite: none
               secure: true
@@ -170,7 +152,7 @@ kubectl delete -f ../nginx/
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| `kubectl apply` fails with "no matches for kind IngressRoute" | Traefik CRDs not installed | Install Traefik via Helm first |
-| Browser shows connection refused | Traefik not running or wrong entrypoint port | Check `kubectl get pods -n kube-system \| grep traefik` |
-| Certificate warning in browser | Self-signed cert | Expected — click "Proceed" or use a real cert |
-| 404 from Traefik | Service name or namespace mismatch | Verify `name: nginx-service` and `namespace: nginx-demo` in the manifest |
+| `no matches for kind IngressRoute` | Traefik CRDs not installed | Install Traefik via Helm first |
+| Connection refused on 443 | Traefik not running or `websecure` entrypoint not exposed | `kubectl get pods -n kube-system \| grep traefik` |
+| Browser cert warning | Self-signed certificate | Expected in lab — click Proceed, or use a real cert |
+| 404 from Traefik | Service name or namespace mismatch | Confirm `name: nginx-service` and `namespace: nginx-demo` |

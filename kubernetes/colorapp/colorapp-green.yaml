@@ -1,0 +1,45 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: green-app
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: deployment-green
+  namespace: green-app
+spec:
+  selector:
+    matchLabels:
+      app: green
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: green
+    spec:
+      containers:
+      - name: webapp
+        image: robokingmaster/examples:colorapp
+        ports:
+        - containerPort: 8080
+        env:
+        - name: "APP_COLOR"
+          value: "green"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: service-green
+  namespace: green-app
+spec:
+  selector:
+    app: green
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: NodePort

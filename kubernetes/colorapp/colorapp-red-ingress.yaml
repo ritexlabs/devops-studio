@@ -1,0 +1,19 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-red
+  namespace: red-app
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web
+spec:
+  rules:
+    - http:
+        paths:
+        - path: /red
+          pathType: Prefix
+          backend:
+            service:
+              name: service-red
+              port:
+                number: 80
