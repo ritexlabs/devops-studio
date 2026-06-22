@@ -40,3 +40,9 @@ Use the token stored on the EC2 instance at:
 
 You can deploy the sample voting application to validate the cluster and confirm external access paths.
 
+The voting app Helm chart is available at:
+
+```text
+https://github.com/ritexlabs/chart-shelf/tree/main/votingapp
+```
+

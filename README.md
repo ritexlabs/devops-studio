@@ -12,32 +12,39 @@ This repo is meant to help anyone learn DevOps faster by keeping common workflow
 - Notes and examples for faster review and revision
 - Small, focused experiments that explain one concept at a time
 
-## Suggested repository structure
+## Repository Structure
 
 ```text
 .
+├── kubernetes/
+│   ├── KinD-cluster/              # Local multi-node Kubernetes cluster with KinD + Docker
+│   ├── ingress/                   # Ingress manifests — Traefik, EKS ALB, GKE GCE
+│   ├── persistant-storage/        # Persistent Volume and PVC examples
+│   ├── sample-apps/
+│   │   ├── nginx/                 # First Kubernetes app — Namespace, Deployment, Service, Ingress
+│   │   ├── colorapp/              # Python/Flask color app — env vars, replicas, load balancing
+│   │   ├── colorapp-ingress-dns/  # EKS ALB and GKE cloud ingress for colorapp
+│   │   └── nginx-ingress-dns/     # Traefik TLS IngressRoute for nginx
+│   └── utilities/                 # Debug tooling — curl pod for in-cluster connectivity testing
 ├── samples-python/
 │   └── webapps/
-│       └── colorapp/ # Python web app sample
+│       └── colorapp/              # Python/Flask colorapp source
 ├── samples-nodejs/
 │   ├── nodejs-web/
 │   └── nodejs-static/
 ├── samples-terraform/
-│   ├── ec2-KinD-cluster/
-│   ├── ec2-grafana-instance/
-│   └── aws-playground-infra/
-├── examples/         # Small runnable examples
-├── notes/            # Short topic notes and study material
-├── references/       # Quick references, cheat sheets, command lists
-├── docs/             # Longer guides and walkthroughs
+│   ├── ec2-KinD-cluster/          # Terraform stack: EC2 + KinD cluster
+│   ├── ec2-grafana-instance/      # Terraform stack: EC2 Grafana instance
+│   └── aws-playground-infra/      # Terraform stack: general AWS playground
 └── README.md
 ```
 
 If you add a new topic, keep it small and easy to scan. Prefer one concept per folder or file.
 
-The current Python sample app lives in [samples-python/webapps/colorapp](samples-python/webapps/colorapp).
-The current Node.js sample apps live in [samples-nodejs](samples-nodejs).
-The current Terraform sample stacks live in [samples-terraform](samples-terraform), where each stack has a focused purpose and clear setup guidance.
+- Kubernetes manifests, cluster setup, and sample app deployments → [kubernetes/](kubernetes/)
+- Python sample app source → [samples-python/webapps/colorapp](samples-python/webapps/colorapp)
+- Node.js sample apps → [samples-nodejs/](samples-nodejs/)
+- Terraform infrastructure stacks → [samples-terraform/](samples-terraform/)
 
 ## How to use this repo
 

@@ -1,0 +1,26 @@
+
+services:
+  k8s-kind-cluster:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: k8s-kind-cluster
+    privileged: true  # Required for Docker-in-Docker
+    working_dir: /dsk01
+    command: bash
+    tty: true
+    stdin_open: true
+    volumes:
+      # Mount your local workspace
+      - /Users/singr2/RiteshLocalWorkspaces/PersonalWorkspace/docker-volume:/dsk01
+      # Mount Docker data for DinD persistence
+      - /var/lib/docker
+    environment:
+      - DOCKER_TLS_CERTDIR=
+      - KIND_CLUSTER_NAME=mycluster
+      - KIND_CONFIG_FILE=/dsk01/kind-config.yaml
+      - KIND_WAIT=120s
+      - CNI_PLUGIN=calico
+      - INSECURE_REGISTRY=false  # Set to true if TLS issues persist
+    ports:
+      - "6443:6443"  # Expose KinD API server
